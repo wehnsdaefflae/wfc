@@ -107,7 +107,6 @@ def collapse(coordinates: COORDINATES, superposition: SUPERPOSITION):
     observation, = random.choices(population, weights=weights, k=1)
     possibilities.clear()
     possibilities[observation] = 1
-    print(f"collapsed {str(coordinates):s}")
 
 
 class Contradiction(ValueError):
@@ -140,17 +139,23 @@ def propagate(coordinates: COORDINATES, superposition: SUPERPOSITION, constraint
             continue
 
         neighbor_frequencies = superposition.get(each_neighbor)
-        if len(neighbor_frequencies) < 2:
-            continue
 
-        allowed = sum((constraints.get((each_tile, (delta_x, delta_y))) for each_tile in tiles), Counter())
+        allowed = Counter()
+        for each_tile in tiles:
+            each_constraint = constraints.get((each_tile, (delta_x, delta_y)))
+            if each_constraint is None:
+                continue
+            allowed += each_constraint
+
+        # allowed = sum((constraints.get((each_tile, (delta_x, delta_y))) for each_tile in tiles), Counter())
         to_delete = set()
         for each_tile in neighbor_frequencies:
             if each_tile not in allowed:
                 to_delete.add(each_tile)
 
         for each_tile in to_delete:
-            neighbor_frequencies.pop(each_tile)
+            if len(neighbor_frequencies) >= 2:
+                neighbor_frequencies.pop(each_tile)
 
 
 def get_image(superposition: SUPERPOSITION, tile_size: int, width: int, height: int) -> Image:
@@ -160,6 +165,7 @@ def get_image(superposition: SUPERPOSITION, tile_size: int, width: int, height: 
             tile, = superposition.get((x, y))
         except ValueError:
             raise Contradiction(f"position {str((x, y)):s} is empty")
+
         for i, pixel in enumerate(tile.array):
             delta_x, delta_y = i // tile_size, i % tile_size
             coordinates = x * tile_size + delta_x, y * tile_size + delta_y
@@ -199,6 +205,10 @@ def main():
     neighborhood = (0, -1), (0, 1), (-1, 0), (1, 0)
 
     input_image = Image.open(file_path)
+
+    assert input_image.width % tile_size == 0, f"width of {input_image.width:d} not divisible by {tile_size:d}."
+    assert input_image.height % tile_size == 0, f"height of {input_image.height:d} not divisible by {tile_size:d}."
+
     output_image = generate_image(input_image, tile_size, neighborhood)
 
     output_image.show()
